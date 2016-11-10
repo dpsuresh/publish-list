@@ -9,7 +9,7 @@ import urllib
 import uuid
 import time
 import datetime
-import calendar 
+import calendar
 
 
 # date time helper functions
@@ -52,19 +52,24 @@ def get_type(ccm):
 
 
 def get_collection_list_type(ccm, list_type):
-    result = "default"
-    if list_type == "only:list" :
+    result = 'default'
+    if list_type == 'only:list':
+
         # For lists look for list_types
-        tags = ccm['self']["_tags"]
+
+        tags = ccm['self']['_tags']
         lookfor = 'ymedia:list_type='
-    else :
+    else:
+
         # For collections look for collection_type
+
         if 'yahoo-media:collection' not in ccm:
             return 'badccm'
         tags = ccm['yahoo-media:collection']['_tags']
         lookfor = 'ymedia:collection_type='
-    
+
     # Parse tags and find type
+
     for i in range(len(tags)):
         if tags[i].startswith(lookfor):
             index = tags[i].find('=') + 1
@@ -72,25 +77,12 @@ def get_collection_list_type(ccm, list_type):
     return result
 
 
-def get_collection_description(ccm):
-    if 'description' not in ccm['yahoo-media:collection']:
-        return 'empty'
-    return ccm['yahoo-media:collection']['description']
-
-
-def get_istest(ccm):
-    description = get_collection_description(ccm)
-    if 'test' in description.lower():
-        return 'TEST'
-    return ''
-
-
 def get_rule_type(ccm):
     if 'yahoo-media:asset-list-rules' not in ccm:
         return 'empty'
     if 'rules' not in ccm['yahoo-media:asset-list-rules']:
         return 'empty'
-    type = 'static'
+    type = 'fixed'
     rules = ccm['yahoo-media:asset-list-rules']['rules']
     query_count = 0
     for r in rules:
@@ -147,6 +139,7 @@ def get_context(ccm):
     context_cache[context_uuid] = contextname
     return contextname
 
+
 # MAIN
 # --------------------------------------------------------------------
 
@@ -162,31 +155,36 @@ date_to = 0
 # Argument Parsing
 
 # look for --noheader
+
 header = True
 i = 1
-if len(sys.argv) > i and sys.argv[i] == "--noheader" :
+if len(sys.argv) > i and sys.argv[i] == '--noheader':
     header = False
     i += 1
-    
+
 # look for from-date-YYYY-mm-dd
-if len(sys.argv) > i :
+
+if len(sys.argv) > i:
     date_from = sys.argv[i]
     i += 1
 
 # look for to-date-YYYY-mm-dd
+
 if len(sys.argv) > i:
     date_to = sys.argv[i]
     i += 1
 
-if date_from == 0 :
+if date_from == 0:
+
     # Error. We need atleast this. Display usage message
+
     print 'Usage: python list.py [--noheader] from-date-YYYY-mm-dd [to-date-YYYY-mm-dd]'
     exit(-1)
 
 # Convert date_from and date_to to gmtimestamp in milliseconds
 
 date_from = gmtimestamp_ms(date_from)
-if date_to != 0 :
+if date_to != 0:
     date_to = gmtimestamp_ms(date_to)
 
 # Contruct the url for timeframe date_from - date_to
@@ -205,12 +203,12 @@ if date_to != 0:
     url += 'AND%20(modified%3C%22' + str(date_to) + '%22)%20'
 url += 'ORDER%20BY%20published%20desc%3B'
 
-
 url_data = urllib.urlopen(url).read()
 d = json.loads(url_data)
 
 # Print pretty version of url
-if header :
+
+if header:
     print urllib.unquote(url).decode('utf8')
     print d['root']['fields']['totalCount'], ' Lists Modified'
     print
@@ -228,8 +226,9 @@ for i in range(len(children) - 1):
 
 ccm_url_base = 'http://tools.mct.corp.yahoo.com:8080/v1/object/'
 header = \
-    '"List UUID",Language,Type,"Collection/List Type","Rules Type",Modified,Created,Test?,"Context","List CCM"'
-print header
+    '"List UUID",Language,Type,"Collection/List Type","Rules Type",Modified,Created,Context,"List CCM"'
+if header :
+    print header
 for l in lists:
     ccm_url = ccm_url_base + l
     ccm = json.loads(urllib.urlopen(ccm_url).read())
@@ -247,20 +246,20 @@ for l in lists:
         data['rule_type'] = 'badccm'
         data['modified'] = 'badccm'
         data['created'] = 'badccm'
-        data['test'] = ''
         data['context'] = ''
     else:
         data['lang'] = get_lang(ccm)
         data['type'] = get_type(ccm)
-        data['collection_type'] = get_collection_list_type(ccm, data["type"])
+        data['collection_type'] = get_collection_list_type(ccm,
+                data['type'])
         data['rule_type'] = ''
         data['test'] = ''
-        if data['collection_type'] == 'playlist':
+        if data['collection_type'] == 'playlist' \
+            or data['collection_type'] == 'static':
             data['rule_type'] = get_rule_type(ccm)
-            data['test'] = get_istest(ccm)
         data['modified'] = get_modified(ccm)
         data['created'] = get_created(ccm)
         data['context'] = get_context(ccm)
 
-    print '{uuid},{lang},{type},{collection_type},{rule_type},{modified},{created},{test},{context},{ccm_url}'.format(**data)
+    print '{uuid},{lang},{type},{collection_type},{rule_type},{modified},{created},{context},{ccm_url}'.format(**data)
 
