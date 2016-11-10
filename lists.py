@@ -156,10 +156,10 @@ date_to = 0
 
 # look for --noheader
 
-header = True
+show_header = True
 i = 1
 if len(sys.argv) > i and sys.argv[i] == '--noheader':
-    header = False
+    show_header = False
     i += 1
 
 # look for from-date-YYYY-mm-dd
@@ -206,17 +206,29 @@ url += 'ORDER%20BY%20published%20desc%3B'
 url_data = urllib.urlopen(url).read()
 d = json.loads(url_data)
 
+totalCount = d['root']['fields']['totalCount']
+children = d['root']['children']
+
+if totalCount == 0:
+    print 'No results found!'
+    exit(-1)
+
+if totalCount > len(children):
+    print 'WARNING: Max count exceeded. ', totalCount, \
+        ' lists Modified. But only ', len(children), ' listids returned.'
+    print "WARNING: Reduce timerange to get full list."
+    print 
+
 # Print pretty version of url
 
-if header:
+if show_header:
     print urllib.unquote(url).decode('utf8')
-    print d['root']['fields']['totalCount'], ' Lists Modified'
+    print totalCount, ' Lists Modified'
     print
 
 # Collect all list id
 
 lists = {}
-children = d['root']['children']
 
 for i in range(len(children) - 1):
     id = children[i]['fields']['uuid']
@@ -224,38 +236,25 @@ for i in range(len(children) - 1):
 
 # For each list figure out its attributes
 
-ccm_url_base = 'http://tools.mct.corp.yahoo.com:8080/v1/object/'
-header = \
-    '"List UUID",Language,Type,"Collection/List Type","Rules Type",Modified,Created,Context,"List CCM"'
-if header :
-    print header
+if show_header:
+    print '"List UUID",Language,Type,"Collection/List Type","Rules Type",Modified,Created,Context,"List CCM"'
+
 for l in lists:
-    ccm_url = ccm_url_base + l
+    ccm_url = 'http://tools.mct.corp.yahoo.com:8080/v1/object/' + l
     ccm = json.loads(urllib.urlopen(ccm_url).read())
 
     # print l
 
-    data = {'uuid': l, 'ccm_url': ccm_url}
+    data = {'uuid': l, 'ccm_url': ccm_url, 'lang': 'badccm', 'type' : 'badccm',
+            'collection_type': '', 'rule_type':'', 'modified': '', 'created': '', 'context': ''}
 
     # Dont operate on ccms that are bad
 
-    if 'self' not in ccm:
-        data['lang'] = 'badccm'
-        data['type'] = 'badccm'
-        data['collection_type'] = 'badccm'
-        data['rule_type'] = 'badccm'
-        data['modified'] = 'badccm'
-        data['created'] = 'badccm'
-        data['context'] = ''
-    else:
+    if 'self' in ccm:
         data['lang'] = get_lang(ccm)
         data['type'] = get_type(ccm)
-        data['collection_type'] = get_collection_list_type(ccm,
-                data['type'])
-        data['rule_type'] = ''
-        data['test'] = ''
-        if data['collection_type'] == 'playlist' \
-            or data['collection_type'] == 'static':
+        data['collection_type'] = get_collection_list_type(ccm, data['type'])
+        if data['collection_type'] in {'playlist', 'static'}:
             data['rule_type'] = get_rule_type(ccm)
         data['modified'] = get_modified(ccm)
         data['created'] = get_created(ccm)
