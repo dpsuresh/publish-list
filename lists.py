@@ -15,9 +15,9 @@ import calendar
 # date time helper functions
 # ----------------------------------------------------------------------
 
-def gmtimestamp_ms(date_str):
-    utc_time = time.strptime(date_str, '%Y-%m-%d')
-    epoch_time_ms = calendar.timegm(utc_time) * 1000
+def gmtimestamp_ms(dt):
+    #d = datetime.strptime(date_str, '%Y-%m-%d')
+    epoch_time_ms = calendar.timegm(dt.timetuple()) * 1000
     return epoch_time_ms
 
 
@@ -174,65 +174,68 @@ if len(sys.argv) > i:
     date_to = sys.argv[i]
     i += 1
 
-if date_from == 0:
-
+if date_from == 0 or date_to == 0:
     # Error. We need atleast this. Display usage message
-
-    print 'Usage: python lists.py [--noheader] from-date-YYYY-mm-dd [to-date-YYYY-mm-dd]'
+    print 'Usage: python lists.py from-date-YYYY-mm-dd to-date-YYYY-mm-dd'
     exit(-1)
-
-# Convert date_from and date_to to gmtimestamp in milliseconds
-
-date_from = gmtimestamp_ms(date_from)
-if date_to != 0:
-    date_to = gmtimestamp_ms(date_to)
-
-# Contruct the url for timeframe date_from - date_to
-# url = 'http://contentindexing.partner-publishing.global.vespa.yahooapis.com:4080/search/?start=0&count=400&format=json&yql=select%20*%20from%20sources%20contentindexing%20where%20(tags%20contains%20%22ymedia%3Atype%3Dcollection%22)%20'
-
-url = \
-    'http://contentindexing.partner-publishing.global.vespa.yahooapis.com:4080/search/?start=0&count=400&format=json&yql=select%20*%20from%20sources%20contentindexing%20where%20((tags%20contains%20%22ymedia%3Atype%3Dcollection%22)OR(tags%20contains%20%22ymedia%3Atype%3Dlist%22))%20'
-
-# AND modified > date_from
-
-url += 'AND%20(modified%3E%22' + str(date_from) + '%22)%20'
-
-# AND modified < date_to
-
-if date_to != 0:
-    url += 'AND%20(modified%3C%22' + str(date_to) + '%22)%20'
-url += 'ORDER%20BY%20published%20desc%3B'
-
-url_data = urllib.urlopen(url).read()
-d = json.loads(url_data)
-
-totalCount = d['root']['fields']['totalCount']
-children = d['root']['children']
-
-if totalCount == 0:
-    print 'No results found!'
-    exit(-1)
-
-if totalCount > len(children):
-    print 'WARNING: Max count exceeded. ', totalCount, \
-        ' lists Modified. But only ', len(children), ' listids returned.'
-    print "WARNING: Reduce timerange to get full list."
-    print 
-
-# Print pretty version of url
-
-if show_header:
-    print urllib.unquote(url).decode('utf8')
-    print totalCount, ' Lists Modified'
-    print
-
-# Collect all list id
 
 lists = {}
+daysdelta = datetime.timedelta(days=4)
+dt_from = datetime.datetime.strptime(date_from, '%Y-%m-%d')
+dt_to = datetime.datetime.strptime(date_to, "%Y-%m-%d")
 
-for i in range(len(children) - 1):
-    id = children[i]['fields']['uuid']
-    lists[id] = 1
+di = dt_from
+while di < dt_to :
+    # get list from di to di+days5
+    di_from = di
+    di_to = di_from + daysdelta
+    if di_to > dt_to :
+        di_to = dt_to
+    
+    # XXX DEBUG
+    print di_from, di_to
+    
+    # Convert date_from and date_to to gmtimestamp in milliseconds
+    di_from_ms = gmtimestamp_ms(di_from)
+    di_to_ms = gmtimestamp_ms(di_to)
+
+    # Contruct the url for timeframe di_from_ms - di_ti_ms
+    url = \
+        'http://contentindexing.partner-publishing.global.vespa.yahooapis.com:4080/search/?start=0&count=400&format=json&yql=select%20*%20from%20sources%20contentindexing%20where%20((tags%20contains%20%22ymedia%3Atype%3Dcollection%22)OR(tags%20contains%20%22ymedia%3Atype%3Dlist%22))%20'
+    url += 'AND%20(modified%3E%22' + str(di_from_ms) + '%22)%20'
+    url += 'AND%20(modified%3C%22' + str(di_to_ms) + '%22)%20'
+    # XXX Remove order by as it is gives inaccurate results
+    url += 'ORDER%20BY%20published%20desc%3B'
+
+    url_data = urllib.urlopen(url).read()
+    d = json.loads(url_data)
+    
+    totalCount = d['root']['fields']['totalCount']
+    children = d['root']['children']
+
+    if totalCount == 0:
+        print 'No results found!'
+        exit(-1)
+
+    if totalCount > len(children):
+        print 'WARNING: Max count exceeded. ', totalCount, \
+            ' lists Modified. But only ', len(children), ' listids returned.'
+        print "WARNING: Reduce timerange to get full list."
+        print 
+
+    # Print pretty version of url
+    if show_header:
+        print "Date range: ", di_from, " to ", di_to
+        print urllib.unquote(url).decode('utf8')
+        print totalCount, ' Lists Modified'
+        print
+
+    # Collect all list id
+    for i in range(len(children) - 1):
+        id = children[i]['fields']['uuid']
+        lists[id] = 1
+        
+    di = di_to
 
 # For each list figure out its attributes
 
