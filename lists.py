@@ -178,7 +178,7 @@ if date_from == 0:
 
     # Error. We need atleast this. Display usage message
 
-    print 'Usage: python list.py [--noheader] from-date-YYYY-mm-dd [to-date-YYYY-mm-dd]'
+    print 'Usage: python lists.py [--noheader] from-date-YYYY-mm-dd [to-date-YYYY-mm-dd]'
     exit(-1)
 
 # Convert date_from and date_to to gmtimestamp in milliseconds
