@@ -156,23 +156,15 @@ date_to = 0
 
 # look for --noheader
 
-show_header = True
-i = 1
-if len(sys.argv) > i and sys.argv[i] == '--noheader':
-    show_header = False
-    i += 1
+#set this to be true to see some debug output
+show_header = False
+
 
 # look for from-date-YYYY-mm-dd
 
-if len(sys.argv) > i:
-    date_from = sys.argv[i]
-    i += 1
-
-# look for to-date-YYYY-mm-dd
-
-if len(sys.argv) > i:
-    date_to = sys.argv[i]
-    i += 1
+if len(sys.argv) >= 3:
+    date_from = sys.argv[1]
+    date_to = sys.argv[2]
 
 if date_from == 0 or date_to == 0:
     # Error. We need atleast this. Display usage message
@@ -183,7 +175,6 @@ lists = {}
 daysdelta = datetime.timedelta(days=4)
 dt_from = datetime.datetime.strptime(date_from, '%Y-%m-%d')
 dt_to = datetime.datetime.strptime(date_to, "%Y-%m-%d")
-
 di = dt_from
 while di < dt_to :
     # get list from di to di+days5
@@ -191,9 +182,6 @@ while di < dt_to :
     di_to = di_from + daysdelta
     if di_to > dt_to :
         di_to = dt_to
-    
-    # XXX DEBUG
-    print di_from, di_to
     
     # Convert date_from and date_to to gmtimestamp in milliseconds
     di_from_ms = gmtimestamp_ms(di_from)
@@ -204,8 +192,7 @@ while di < dt_to :
         'http://contentindexing.partner-publishing.global.vespa.yahooapis.com:4080/search/?start=0&count=400&format=json&yql=select%20*%20from%20sources%20contentindexing%20where%20((tags%20contains%20%22ymedia%3Atype%3Dcollection%22)OR(tags%20contains%20%22ymedia%3Atype%3Dlist%22))%20'
     url += 'AND%20(modified%3E%22' + str(di_from_ms) + '%22)%20'
     url += 'AND%20(modified%3C%22' + str(di_to_ms) + '%22)%20'
-    # XXX Remove order by as it is gives inaccurate results
-    url += 'ORDER%20BY%20published%20desc%3B'
+    url += '%3B'
 
     url_data = urllib.urlopen(url).read()
     d = json.loads(url_data)
@@ -238,9 +225,7 @@ while di < dt_to :
     di = di_to
 
 # For each list figure out its attributes
-
-if show_header:
-    print '"List UUID",Language,Type,"Collection/List Type","Rules Type",Modified,Created,Context,"List CCM"'
+print '"List UUID",Language,Type,"Collection/List Type","Rules Type",Modified,Created,Context,"List CCM"'
 
 for l in lists:
     ccm_url = 'http://tools.mct.corp.yahoo.com:8080/v1/object/' + l
